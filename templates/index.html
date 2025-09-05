@@ -68,10 +68,14 @@
             text-decoration: none;
             cursor: pointer;
             font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #007bff;
         }
         .price-link:hover {
-            text-decoration: underline;
-            color: #0056b3;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
         }
         .btn { 
             padding: 12px 24px; 
@@ -169,6 +173,42 @@
             display: flex;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            min-width: 100px;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .stock-info {
+            font-size: 11px;
+            color: #28a745;
+            background: #d4edda;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
         }
     </style>
 </head>
@@ -179,15 +219,35 @@
         <div class="tabs">
             <div class="tab active" onclick="openTab('main')">Главная</div>
             <div class="tab" onclick="openTab('settings')">Настройки API</div>
-            <div class="tab" onclick="openTab('upload')">Загрузка данных</div>
+            <div class="tab" onclick="openTab('upload')">Загрузка цен</div>
         </div>
 
         <!-- Главная вкладка -->
         <div id="main" class="tab-content active">
             <div class="controls">
-                <button class="btn" onclick="updatePrices()">🔄 Обновить через API</button>
-                <button class="btn btn-secondary" onclick="showUploadedData()">📋 Показать загруженные данные</button>
+                <button class="btn" onclick="updatePrices()">🔄 Загрузить товары через API</button>
+                <span id="prices-info" class="file-info">Рекомендованных цен: 0</span>
             </div>
+            
+            <div id="stats" class="stats" style="display: none;">
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-yandex">0</div>
+                    <div class="stat-label">Яндекс Маркет</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-ozon">0</div>
+                    <div class="stat-label">Ozon</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-wildberries">0</div>
+                    <div class="stat-label">Wildberries</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-total">0</div>
+                    <div class="stat-label">Всего товаров</div>
+                </div>
+            </div>
+            
             <div id="api-status" class="status"></div>
             <div id="status" class="status"></div>
             
@@ -195,28 +255,28 @@
                 <table id="prices-table">
                     <thead>
                         <tr>
-                            <th colspan="4" class="marketplace-header">
+                            <th colspan="5" class="marketplace-header">
                                 Яндекс Маркет 
                                 <span id="yandex-status" class="api-status api-disconnected">Не подключен</span>
                             </th>
-                            <th colspan="4" class="marketplace-header">
+                            <th colspan="5" class="marketplace-header">
                                 Ozon
                                 <span id="ozon-status" class="api-status api-disconnected">Не подключен</span>
                             </th>
-                            <th colspan="4" class="marketplace-header">
+                            <th colspan="5" class="marketplace-header">
                                 Wildberries
                                 <span id="wb-status" class="api-status api-disconnected">Не подключен</span>
                             </th>
                         </tr>
                         <tr>
-                            <th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Актуальная цена</th>
-                            <th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Актуальная цена</th>
-                            <th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Актуальная цена</th>
+                            <th>SKU</th><th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Цена на витрине</th>
+                            <th>SKU</th><th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Цена на витрине</th>
+                            <th>SKU</th><th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Цена на витрине</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="12" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">
-                            Загрузите данные Excel через вкладку "Загрузка данных"
+                        <tr><td colspan="15" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">
+                            Загрузите рекомендованные цены и обновите данные через API
                         </td></tr>
                     </tbody>
                 </table>
@@ -227,23 +287,23 @@
         <div id="settings" class="tab-content">
             <div class="api-section">
                 <h4>🟠 Яндекс Маркет</h4>
-                <input type="text" id="yandex-seller-id" placeholder="Seller ID (Client ID)">
-                <input type="password" id="yandex-api-key" placeholder="API Key (Token)">
-                <small>Для получения токена: Кабинет продавца → Настройки → API</small>
+                <input type="text" id="yandex-seller-id" placeholder="ID кампании (seller_id)">
+                <input type="password" id="yandex-api-key" placeholder="OAuth токен">
+                <small>Для получения: Кабинет продавца → Настройки → API → OAuth-токен</small>
             </div>
 
             <div class="api-section">
                 <h4>🔵 Ozon</h4>
-                <input type="text" id="ozon-seller-id" placeholder="Seller ID (Client ID)">
+                <input type="text" id="ozon-seller-id" placeholder="Client ID">
                 <input type="password" id="ozon-api-key" placeholder="API Key">
-                <small>Для получения ключа: Личный кабинет → Настройки → API ключи</small>
+                <small>Для получения: Ozon Seller → Настройки → API ключи</small>
             </div>
 
             <div class="api-section">
                 <h4>🟣 Wildberries</h4>
-                <input type="text" id="wildberries-seller-id" placeholder="Seller ID (x-supplier-id)">
-                <input type="password" id="wildberries-api-key" placeholder="API Key (стандартный ключ)">
-                <small>Для получения ключа: Личный кабинет → Настройки → API</small>
+                <input type="text" id="wildberries-seller-id" placeholder="x-supplier-id">
+                <input type="password" id="wildberries-api-key" placeholder="Стандартный API ключ">
+                <small>Для получения: Личный кабинет WB → Настройки → API</small>
             </div>
 
             <button class="btn" onclick="saveSettings()">💾 Сохранить настройки API</button>
@@ -252,10 +312,10 @@
 
         <!-- Загрузка данных -->
         <div id="upload" class="tab-content">
-            <h3>📤 Загрузка Excel файла</h3>
+            <h3>📤 Загрузка Excel с рекомендованными ценами</h3>
             <p><strong>Формат файла:</strong></p>
             <ul>
-                <li>Первый столбец: Артикул товара</li>
+                <li>Первый столбец: Артикул товара (должен совпадать с артикулом на маркетплейсах)</li>
                 <li>Второй столбец: Рекомендованная цена</li>
                 <li>Первая строка: Заголовки (игнорируется)</li>
             </ul>
@@ -270,7 +330,7 @@
     </div>
 
     <script>
-        let currentData = [];
+        let currentData = {};
 
         function openTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -307,13 +367,14 @@
             const fileInput = document.getElementById('excel-file');
             const status = document.getElementById('upload-status');
             const fileInfo = document.getElementById('file-info');
+            const pricesInfo = document.getElementById('prices-info');
 
             if (!fileInput.files[0]) {
                 status.innerHTML = '<div class="error">❌ Выберите файл для загрузки</div>';
                 return;
             }
 
-            status.innerHTML = '<div class="loading">⏳ Загрузка файла...</div>';
+            status.innerHTML = '<div class="loading">⏳ Загрузка рекомендованных цен...</div>';
             fileInfo.innerHTML = '';
 
             const formData = new FormData();
@@ -328,15 +389,9 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    status.innerHTML = '<div class="success">✅ Файл успешно загружен!</div>';
-                    fileInfo.innerHTML = `📊 Загружено товаров: <strong>${result.data.length}</strong>`;
-                    currentData = result.data;
-                    
-                    // Автоматически показываем загруженные данные
-                    renderTable();
-                    
-                    // Переключаемся на главную вкладку
-                    setTimeout(() => openTab('main'), 500);
+                    status.innerHTML = '<div class="success">✅ Рекомендованные цены загружены!</div>';
+                    fileInfo.innerHTML = `📊 Загружено: <strong>${result.count}</strong> рекомендованных цен`;
+                    pricesInfo.textContent = `Рекомендованных цен: ${result.count}`;
                     
                 } else {
                     status.innerHTML = `<div class="error">❌ Ошибка: ${result.error}</div>`;
@@ -346,26 +401,13 @@
             }
         }
 
-        function showUploadedData() {
-            if (currentData && currentData.length > 0) {
-                renderTable();
-                document.getElementById('status').innerHTML = '<div class="success">✅ Отображены загруженные данные</div>';
-            } else {
-                document.getElementById('status').innerHTML = '<div class="error">❌ Нет загруженных данных</div>';
-            }
-        }
-
         async function updatePrices() {
             const status = document.getElementById('status');
             const apiStatus = document.getElementById('api-status');
-            
-            if (!currentData || currentData.length === 0) {
-                status.innerHTML = '<div class="error">❌ Сначала загрузите данные товаров</div>';
-                return;
-            }
+            const statsDiv = document.getElementById('stats');
 
-            status.innerHTML = '<div class="loading">⏳ Запрос данных через API...</div>';
-            apiStatus.innerHTML = '<div class="loading">📡 Отправка запросов к маркетплейсам</div>';
+            status.innerHTML = '<div class="loading">⏳ Получение товаров через API...</div>';
+            apiStatus.innerHTML = '<div class="loading">📡 Запрос данных с маркетплейсов</div>';
 
             try {
                 const response = await fetch('/api/update_prices', {
@@ -375,9 +417,17 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    status.innerHTML = '<div class="success">✅ Данные успешно получены через API!</div>';
-                    apiStatus.innerHTML = '<div class="success">✅ API запросы выполнены успешно</div>';
+                    status.innerHTML = '<div class="success">✅ Данные успешно получены!</div>';
+                    apiStatus.innerHTML = '<div class="success">✅ API запросы выполнены</div>';
                     currentData = result.data;
+                    
+                    // Показываем статистику
+                    statsDiv.style.display = 'flex';
+                    document.getElementById('stat-yandex').textContent = result.stats.yandex;
+                    document.getElementById('stat-ozon').textContent = result.stats.ozon;
+                    document.getElementById('stat-wildberries').textContent = result.stats.wildberries;
+                    document.getElementById('stat-total').textContent = result.stats.total;
+                    
                     renderTable();
                 } else {
                     status.innerHTML = `<div class="error">❌ Ошибка: ${result.error}</div>`;
@@ -392,34 +442,57 @@
         function renderTable() {
             const tbody = document.getElementById('table-body');
             
-            if (!currentData || currentData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">Нет данных для отображения</td></tr>';
+            if (!currentData || Object.keys(currentData).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="15" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">Нет данных для отображения</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = currentData.map(product => {
-                let html = '<tr>';
+            // Находим максимальное количество товаров среди всех маркетплейсов
+            const maxRows = Math.max(
+                currentData.yandex?.length || 0,
+                currentData.ozon?.length || 0,
+                currentData.wildberries?.length || 0
+            );
+
+            let html = '';
+
+            for (let i = 0; i < maxRows; i++) {
+                html += '<tr>';
                 
-                ['yandex', 'ozon', 'wildberries'].forEach(marketplace => {
-                    const mpData = product.marketplaces[marketplace] || {};
-                    const price = mpData.actual_price;
-                    const priceDisplay = price ? price.toFixed(2) : 'Н/Д';
-                    
-                    html += `
-                        <td>${product.article}</td>
-                        <td>${mpData.name || 'Н/Д'}</td>
-                        <td>${product.recommended_price.toFixed(2)}</td>
-                        <td class="${mpData.is_low ? 'low-price' : ''}">
-                            ${price && mpData.url ? 
-                                `<a href="${mpData.url}" target="_blank" class="price-link" title="Перейти к товару">${priceDisplay}</a>` : 
-                                priceDisplay
-                            }
-                        </td>
-                    `;
-                });
+                // Яндекс Маркет
+                const yandexProduct = currentData.yandex?.[i];
+                html += renderMarketplaceCell(yandexProduct, 'yandex');
                 
-                return html + '</tr>';
-            }).join('');
+                // Ozon
+                const ozonProduct = currentData.ozon?.[i];
+                html += renderMarketplaceCell(ozonProduct, 'ozon');
+                
+                // Wildberries
+                const wbProduct = currentData.wildberries?.[i];
+                html += renderMarketplaceCell(wbProduct, 'wildberries');
+                
+                html += '</tr>';
+            }
+
+            tbody.innerHTML = html;
+        }
+
+        function renderMarketplaceCell(product, marketplace) {
+            if (!product) {
+                return '<td></td><td></td><td></td><td></td><td></td>';
+            }
+
+            return `
+                <td>${product.sku}</td>
+                <td>${product.article}</td>
+                <td>${product.name} ${product.stock ? `<span class="stock-info">${product.stock} шт</span>` : ''}</td>
+                <td>${product.recommended_price ? product.recommended_price.toFixed(2) : '—'}</td>
+                <td class="${product.is_low ? 'low-price' : ''}">
+                    <a href="${product.url}" target="_blank" class="price-link" title="Перейти к товару на маркетплейсе">
+                        ${product.actual_price.toFixed(2)}
+                    </a>
+                </td>
+            `;
         }
 
         async function loadSettings() {
@@ -435,6 +508,8 @@
                 
                 document.getElementById('wildberries-seller-id').value = data.settings.wildberries.seller_id || '';
                 document.getElementById('wildberries-api-key').value = data.settings.wildberries.api_key || '';
+                
+                document.getElementById('prices-info').textContent = `Рекомендованных цен: ${data.recommended_prices_count || 0}`;
                 
                 updateApiStatusIndicators();
                 
