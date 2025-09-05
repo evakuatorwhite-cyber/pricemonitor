@@ -90,6 +90,12 @@
         .btn:hover { 
             background: #0056b3; 
         }
+        .btn-test {
+            background: #28a745;
+        }
+        .btn-test:hover {
+            background: #218838;
+        }
         .btn-secondary {
             background: #6c757d;
         }
@@ -210,6 +216,9 @@
             border-radius: 3px;
             margin-left: 5px;
         }
+        .test-btn {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -290,6 +299,7 @@
                 <input type="text" id="yandex-seller-id" placeholder="ID кампании (seller_id)">
                 <input type="password" id="yandex-api-key" placeholder="OAuth токен">
                 <small>Для получения: Кабинет продавца → Настройки → API → OAuth-токен</small>
+                <button class="btn btn-test test-btn" onclick="testConnection('yandex')">🔍 Проверить подключение</button>
             </div>
 
             <div class="api-section">
@@ -297,6 +307,7 @@
                 <input type="text" id="ozon-seller-id" placeholder="Client ID">
                 <input type="password" id="ozon-api-key" placeholder="API Key">
                 <small>Для получения: Ozon Seller → Настройки → API ключи</small>
+                <button class="btn btn-test test-btn" onclick="testConnection('ozon')">🔍 Проверить подключение</button>
             </div>
 
             <div class="api-section">
@@ -304,10 +315,12 @@
                 <input type="text" id="wildberries-seller-id" placeholder="x-supplier-id">
                 <input type="password" id="wildberries-api-key" placeholder="Стандартный API ключ">
                 <small>Для получения: Личный кабинет WB → Настройки → API</small>
+                <button class="btn btn-test test-btn" onclick="testConnection('wildberries')">🔍 Проверить подключение</button>
             </div>
 
             <button class="btn" onclick="saveSettings()">💾 Сохранить настройки API</button>
             <div id="settings-status" class="status"></div>
+            <div id="test-status" class="status"></div>
         </div>
 
         <!-- Загрузка данных -->
@@ -341,6 +354,31 @@
 
             if (tabName === 'settings') {
                 loadSettings();
+            }
+        }
+
+        async function testConnection(marketplace) {
+            const status = document.getElementById('test-status');
+            status.innerHTML = `<div class="loading">⏳ Проверка подключения к ${marketplace}...</div>`;
+
+            try {
+                const response = await fetch('/api/test_connection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ marketplace })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = `<div class="success">✅ Подключение успешно! Найдено товаров: ${result.count}</div>`;
+                } else {
+                    status.innerHTML = `<div class="error">❌ Ошибка подключения: ${result.error || 'Проверьте настройки'}</div>`;
+                }
+            } catch (error) {
+                status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
             }
         }
 
@@ -485,77 +523,4 @@
             return `
                 <td>${product.sku}</td>
                 <td>${product.article}</td>
-                <td>${product.name} ${product.stock ? `<span class="stock-info">${product.stock} шт</span>` : ''}</td>
-                <td>${product.recommended_price ? product.recommended_price.toFixed(2) : '—'}</td>
-                <td class="${product.is_low ? 'low-price' : ''}">
-                    <a href="${product.url}" target="_blank" class="price-link" title="Перейти к товару на маркетплейсе">
-                        ${product.actual_price.toFixed(2)}
-                    </a>
-                </td>
-            `;
-        }
-
-        async function loadSettings() {
-            try {
-                const response = await fetch('/api/get_data');
-                const data = await response.json();
-                
-                document.getElementById('yandex-seller-id').value = data.settings.yandex.seller_id || '';
-                document.getElementById('yandex-api-key').value = data.settings.yandex.api_key || '';
-                
-                document.getElementById('ozon-seller-id').value = data.settings.ozon.seller_id || '';
-                document.getElementById('ozon-api-key').value = data.settings.ozon.api_key || '';
-                
-                document.getElementById('wildberries-seller-id').value = data.settings.wildberries.seller_id || '';
-                document.getElementById('wildberries-api-key').value = data.settings.wildberries.api_key || '';
-                
-                document.getElementById('prices-info').textContent = `Рекомендованных цен: ${data.recommended_prices_count || 0}`;
-                
-                updateApiStatusIndicators();
-                
-            } catch (error) {
-                console.error('Ошибка загрузки настроек:', error);
-            }
-        }
-
-        async function saveSettings() {
-            const status = document.getElementById('settings-status');
-            status.innerHTML = '<div class="loading">⏳ Сохранение настроек...</div>';
-
-            const settings = {
-                yandex_seller_id: document.getElementById('yandex-seller-id').value,
-                yandex_api_key: document.getElementById('yandex-api-key').value,
-                ozon_seller_id: document.getElementById('ozon-seller-id').value,
-                ozon_api_key: document.getElementById('ozon-api-key').value,
-                wildberries_seller_id: document.getElementById('wildberries-seller-id').value,
-                wildberries_api_key: document.getElementById('wildberries-api-key').value
-            };
-
-            try {
-                const response = await fetch('/api/save_settings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(settings)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    status.innerHTML = '<div class="success">✅ Настройки успешно сохранены!</div>';
-                    updateApiStatusIndicators();
-                } else {
-                    status.innerHTML = '<div class="error">❌ Ошибка сохранения настроек</div>';
-                }
-            } catch (error) {
-                status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            loadSettings();
-        });
-    </script>
-</body>
-</html>
+                <td>${product.name} ${
