@@ -63,6 +63,16 @@
             color: #c62828; 
             font-weight: bold; 
         }
+        .price-link {
+            color: #007bff;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .price-link:hover {
+            text-decoration: underline;
+            color: #0056b3;
+        }
         .btn { 
             padding: 12px 24px; 
             background: #007bff; 
@@ -133,6 +143,21 @@
             overflow-x: auto;
             margin-top: 20px;
         }
+        .api-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .api-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .api-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
@@ -147,16 +172,26 @@
 
         <!-- Главная вкладка -->
         <div id="main" class="tab-content active">
-            <button class="btn" onclick="updatePrices()">🔄 Обновить цены</button>
+            <button class="btn" onclick="updatePrices()">🔄 Обновить цены через API</button>
+            <div id="api-status" class="status"></div>
             <div id="status" class="status"></div>
             
             <div class="table-container">
                 <table id="prices-table">
                     <thead>
                         <tr>
-                            <th colspan="4" class="marketplace-header">Яндекс Маркет</th>
-                            <th colspan="4" class="marketplace-header">Ozon</th>
-                            <th colspan="4" class="marketplace-header">Wildberries</th>
+                            <th colspan="4" class="marketplace-header">
+                                Яндекс Маркет 
+                                <span id="yandex-status" class="api-status api-disconnected">Не подключен</span>
+                            </th>
+                            <th colspan="4" class="marketplace-header">
+                                Ozon
+                                <span id="ozon-status" class="api-status api-disconnected">Не подключен</span>
+                            </th>
+                            <th colspan="4" class="marketplace-header">
+                                Wildberries
+                                <span id="wb-status" class="api-status api-disconnected">Не подключен</span>
+                            </th>
                         </tr>
                         <tr>
                             <th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Актуальная цена</th>
@@ -166,7 +201,7 @@
                     </thead>
                     <tbody id="table-body">
                         <tr><td colspan="12" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">
-                            Загрузите данные Excel через вкладку "Загрузка данных"
+                            Загрузите данные Excel и настройте API для получения актуальных цен
                         </td></tr>
                     </tbody>
                 </table>
@@ -177,23 +212,26 @@
         <div id="settings" class="tab-content">
             <div class="api-section">
                 <h4>🟠 Яндекс Маркет</h4>
-                <input type="text" id="yandex-seller-id" placeholder="Seller ID Яндекс Маркет">
-                <input type="password" id="yandex-api-key" placeholder="API Key Яндекс Маркет">
+                <input type="text" id="yandex-seller-id" placeholder="Seller ID (Client ID)">
+                <input type="password" id="yandex-api-key" placeholder="API Key (Token)">
+                <small>Для получения токена: Кабинет продавца → Настройки → API</small>
             </div>
 
             <div class="api-section">
                 <h4>🔵 Ozon</h4>
-                <input type="text" id="ozon-seller-id" placeholder="Seller ID Ozon">
-                <input type="password" id="ozon-api-key" placeholder="API Key Ozon">
+                <input type="text" id="ozon-seller-id" placeholder="Seller ID (Client ID)">
+                <input type="password" id="ozon-api-key" placeholder="API Key">
+                <small>Для получения ключа: Личный кабинет → Настройки → API ключи</small>
             </div>
 
             <div class="api-section">
                 <h4>🟣 Wildberries</h4>
-                <input type="text" id="wildberries-seller-id" placeholder="Seller ID Wildberries">
-                <input type="password" id="wildberries-api-key" placeholder="API Key Wildberries">
+                <input type="text" id="wildberries-seller-id" placeholder="Seller ID (x-supplier-id)">
+                <input type="password" id="wildberries-api-key" placeholder="API Key (стандартный ключ)">
+                <small>Для получения ключа: Личный кабинет → Настройки → API</small>
             </div>
 
-            <button class="btn" onclick="saveSettings()">💾 Сохранить настройки</button>
+            <button class="btn" onclick="saveSettings()">💾 Сохранить настройки API</button>
             <div id="settings-status" class="status"></div>
         </div>
 
@@ -220,18 +258,35 @@
         let currentData = [];
 
         function openTab(tabName) {
-            // Обновляем табы
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             
-            // Активируем выбранный таб
             document.querySelector(`.tab[onclick="openTab('${tabName}')"]`).classList.add('active');
             document.getElementById(tabName).classList.add('active');
 
-            // Загружаем настройки если открыли вкладку настроек
             if (tabName === 'settings') {
                 loadSettings();
             }
+        }
+
+        function updateApiStatusIndicators() {
+            // Обновляем статусы подключения API
+            const yandexStatus = document.getElementById('yandex-status');
+            const ozonStatus = document.getElementById('ozon-status');
+            const wbStatus = document.getElementById('wb-status');
+            
+            const yandexKey = document.getElementById('yandex-api-key').value;
+            const ozonKey = document.getElementById('ozon-api-key').value;
+            const wbKey = document.getElementById('wildberries-api-key').value;
+            
+            yandexStatus.textContent = yandexKey ? 'Подключен' : 'Не подключен';
+            yandexStatus.className = yandexKey ? 'api-status api-connected' : 'api-status api-disconnected';
+            
+            ozonStatus.textContent = ozonKey ? 'Подключен' : 'Не подключен';
+            ozonStatus.className = ozonKey ? 'api-status api-connected' : 'api-status api-disconnected';
+            
+            wbStatus.textContent = wbKey ? 'Подключен' : 'Не подключен';
+            wbStatus.className = wbKey ? 'api-status api-connected' : 'api-status api-disconnected';
         }
 
         async function uploadFile() {
@@ -262,27 +317,25 @@
                     status.innerHTML = '<div class="success">✅ Файл успешно загружен!</div>';
                     fileInfo.innerHTML = `📊 Загружено товаров: <strong>${result.data.length}</strong>`;
                     currentData = result.data;
-                    
-                    // Автоматически обновляем цены после загрузки
-                    setTimeout(updatePrices, 1000);
                 } else {
                     status.innerHTML = `<div class="error">❌ Ошибка: ${result.error}</div>`;
                 }
             } catch (error) {
                 status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
-                console.error('Upload error:', error);
             }
         }
 
         async function updatePrices() {
             const status = document.getElementById('status');
+            const apiStatus = document.getElementById('api-status');
             
             if (!currentData || currentData.length === 0) {
                 status.innerHTML = '<div class="error">❌ Сначала загрузите данные товаров</div>';
                 return;
             }
 
-            status.innerHTML = '<div class="loading">⏳ Обновление цен...</div>';
+            status.innerHTML = '<div class="loading">⏳ Запрос данных через API...</div>';
+            apiStatus.innerHTML = '<div class="loading">📡 Отправка запросов к маркетплейсам</div>';
 
             try {
                 const response = await fetch('/api/update_prices', {
@@ -292,15 +345,17 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    status.innerHTML = '<div class="success">✅ Цены успешно обновлены!</div>';
+                    status.innerHTML = '<div class="success">✅ Данные успешно получены через API!</div>';
+                    apiStatus.innerHTML = '<div class="success">✅ API запросы выполнены успешно</div>';
                     currentData = result.data;
                     renderTable();
                 } else {
                     status.innerHTML = `<div class="error">❌ Ошибка: ${result.error}</div>`;
+                    apiStatus.innerHTML = '';
                 }
             } catch (error) {
                 status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
-                console.error('Update prices error:', error);
+                apiStatus.innerHTML = '';
             }
         }
 
@@ -318,12 +373,19 @@
                 // Для каждого маркетплейса
                 ['yandex', 'ozon', 'wildberries'].forEach(marketplace => {
                     const mpData = product.marketplaces[marketplace] || {};
+                    const price = mpData.actual_price;
+                    const priceDisplay = price ? price.toFixed(2) : 'Н/Д';
                     
                     html += `
                         <td>${product.article}</td>
                         <td>${mpData.name || 'Н/Д'}</td>
                         <td>${product.recommended_price.toFixed(2)}</td>
-                        <td class="${mpData.is_low ? 'low-price' : ''}">${mpData.actual_price ? mpData.actual_price.toFixed(2) : 'Н/Д'}</td>
+                        <td class="${mpData.is_low ? 'low-price' : ''}">
+                            ${price && mpData.url ? 
+                                `<a href="${mpData.url}" target="_blank" class="price-link" title="Перейти к товару">${priceDisplay}</a>` : 
+                                priceDisplay
+                            }
+                        </td>
                     `;
                 });
                 
@@ -336,7 +398,6 @@
                 const response = await fetch('/api/get_data');
                 const data = await response.json();
                 
-                // Заполняем поля настроек
                 document.getElementById('yandex-seller-id').value = data.settings.yandex.seller_id || '';
                 document.getElementById('yandex-api-key').value = data.settings.yandex.api_key || '';
                 
@@ -345,6 +406,8 @@
                 
                 document.getElementById('wildberries-seller-id').value = data.settings.wildberries.seller_id || '';
                 document.getElementById('wildberries-api-key').value = data.settings.wildberries.api_key || '';
+                
+                updateApiStatusIndicators();
                 
             } catch (error) {
                 console.error('Ошибка загрузки настроек:', error);
@@ -377,18 +440,19 @@
 
                 if (result.success) {
                     status.innerHTML = '<div class="success">✅ Настройки успешно сохранены!</div>';
+                    updateApiStatusIndicators();
                 } else {
                     status.innerHTML = '<div class="error">❌ Ошибка сохранения настроек</div>';
                 }
             } catch (error) {
                 status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
-                console.error('Save settings error:', error);
             }
         }
 
-        // Загружаем данные при старте
+        // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Price Monitor loaded successfully');
+            loadSettings();
+            console.log('Price Monitor with API loaded successfully');
         });
     </script>
 </body>
