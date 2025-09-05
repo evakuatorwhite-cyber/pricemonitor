@@ -1,0 +1,290 @@
+!DOCTYPE html
+html lang=ru
+head
+    meta charset=UTF-8
+    meta name=viewport content=width=device-width, initial-scale=1.0
+    titleМониторинг цен на маркетплейсахtitle
+    link rel=stylesheet href={{ url_for('static', filename='style.css') }}
+    link href=httpscdnjs.cloudflare.comajaxlibsfont-awesome6.0.0cssall.min.css rel=stylesheet
+head
+body
+    div class=container
+        header
+            h1i class=fas fa-chart-linei Мониторинг цен на маркетплейсахh1
+        header
+
+        div class=tabs
+            button class=tab-btn active onclick=openTab('main')Главнаяbutton
+            button class=tab-btn onclick=openTab('settings')Настройкиbutton
+            button class=tab-btn onclick=openTab('upload')Загрузкаbutton
+        div
+
+        !-- Главная вкладка --
+        div id=main class=tab-content active
+            div class=controls
+                button onclick=updatePrices() class=btn btn-primary
+                    i class=fas fa-synci Обновить цены
+                button
+                span id=statusspan
+            div
+
+            div class=table-container
+                table id=prices-table
+                    thead
+                        tr
+                            th colspan=4 class=marketplace-headerЯндекс Маркетth
+                            th colspan=4 class=marketplace-headerOzonth
+                            th colspan=4 class=marketplace-headerWildberriesth
+                        tr
+                        tr
+                            !-- Яндекс Маркет --
+                            thАртикулth
+                            thНазваниеth
+                            thРек. ценаth
+                            thАктуальная ценаth
+                            !-- Ozon --
+                            thАртикулth
+                            thНазваниеth
+                            thРек. ценаth
+                            thАктуальная ценаth
+                            !-- Wildberries --
+                            thАртикулth
+                            thНазваниеth
+                            thРек. ценаth
+                            thАктуальная ценаth
+                        tr
+                    thead
+                    tbody id=table-body
+                        tr
+                            td colspan=12 class=no-dataЗагрузите данные через вкладку Загрузкаtd
+                        tr
+                    tbody
+                table
+            div
+        div
+
+        !-- Настройки --
+        div id=settings class=tab-content
+            div class=settings-form
+                h2i class=fas fa-cogi Настройки APIh2
+                
+                div class=form-group
+                    labelЯндекс Маркет API Tokenlabel
+                    input type=password id=yandex-token placeholder=Введите API токен Яндекс Маркет class=form-input
+                div
+
+                div class=form-group
+                    labelOzon API Tokenlabel
+                    input type=password id=ozon-token placeholder=Введите API токен Ozon class=form-input
+                div
+
+                div class=form-group
+                    labelWildberries API Tokenlabel
+                    input type=password id=wildberries-token placeholder=Введите API токен Wildberries class=form-input
+                div
+
+                button onclick=saveSettings() class=btn btn-success
+                    i class=fas fa-savei Сохранить настройки
+                button
+                span id=settings-statusspan
+            div
+        div
+
+        !-- Загрузка --
+        div id=upload class=tab-content
+            div class=upload-form
+                h2i class=fas fa-uploadi Загрузка данныхh2
+                
+                div class=form-group
+                    labelВыберите Excel файлlabel
+                    input type=file id=excel-file accept=.xlsx,.xls class=form-input
+                    smallФайл должен содержать артикул в первом столбце и рекомендованную цену во второмsmall
+                div
+
+                button onclick=uploadFile() class=btn btn-primary
+                    i class=fas fa-uploadi Загрузить файл
+                button
+                span id=upload-statusspan
+
+                div id=file-info class=file-infodiv
+            div
+        div
+    div
+
+    script
+        let currentData = [];
+
+        function openTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab = {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn = {
+                btn.classList.remove('active');
+            });
+
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`button[onclick=openTab('${tabName}')]`).classList.add('active');
+
+            if (tabName === 'main') {
+                loadData();
+            } else if (tabName === 'settings') {
+                loadSettings();
+            }
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch('apiget_data');
+                const data = await response.json();
+                
+                if (data.products.length  0) {
+                    currentData = data.products;
+                    renderTable();
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных', error);
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('apiget_data');
+                const data = await response.json();
+                
+                document.getElementById('yandex-token').value = data.settings.yandex  '';
+                document.getElementById('ozon-token').value = data.settings.ozon  '';
+                document.getElementById('wildberries-token').value = data.settings.wildberries  '';
+            } catch (error) {
+                console.error('Ошибка загрузки настроек', error);
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('excel-file');
+            const status = document.getElementById('upload-status');
+            const fileInfo = document.getElementById('file-info');
+
+            if (!fileInput.files[0]) {
+                status.innerHTML = 'span class=errorВыберите файлspan';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            status.innerHTML = 'span class=loadingЗагрузка...span';
+
+            try {
+                const response = await fetch('apiupload', {
+                    method 'POST',
+                    body formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = 'span class=successФайл успешно загруженspan';
+                    fileInfo.innerHTML = `Загружено ${result.data.length} товаров`;
+                    currentData = result.data;
+                    openTab('main');
+                } else {
+                    status.innerHTML = `span class=error${result.error}span`;
+                }
+            } catch (error) {
+                status.innerHTML = 'span class=errorОшибка загрузки файлаspan';
+            }
+        }
+
+        async function saveSettings() {
+            const status = document.getElementById('settings-status');
+            const settings = {
+                yandex_token document.getElementById('yandex-token').value,
+                ozon_token document.getElementById('ozon-token').value,
+                wildberries_token document.getElementById('wildberries-token').value
+            };
+
+            status.innerHTML = 'span class=loadingСохранение...span';
+
+            try {
+                const response = await fetch('apisave_settings', {
+                    method 'POST',
+                    headers {
+                        'Content-Type' 'applicationjson'
+                    },
+                    body JSON.stringify(settings)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = 'span class=successНастройки сохраненыspan';
+                } else {
+                    status.innerHTML = 'span class=errorОшибка сохраненияspan';
+                }
+            } catch (error) {
+                status.innerHTML = 'span class=errorОшибка соединенияspan';
+            }
+        }
+
+        async function updatePrices() {
+            const status = document.getElementById('status');
+            
+            if (currentData.length === 0) {
+                status.innerHTML = 'span class=errorСначала загрузите данные товаровspan';
+                return;
+            }
+
+            status.innerHTML = 'span class=loadingОбновление цен...span';
+
+            try {
+                const response = await fetch('apiupdate_prices', {
+                    method 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = 'span class=successЦены обновленыspan';
+                    currentData = result.data;
+                    renderTable();
+                } else {
+                    status.innerHTML = `span class=error${result.error}span`;
+                }
+            } catch (error) {
+                status.innerHTML = 'span class=errorОшибка обновленияspan';
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (currentData.length === 0) {
+                tbody.innerHTML = 'trtd colspan=12 class=no-dataНет данных для отображенияtdtr';
+                return;
+            }
+
+            currentData.forEach(product = {
+                const row = document.createElement('tr');
+                
+                 Для каждого маркетплейса
+                ['yandex', 'ozon', 'wildberries'].forEach(marketplace = {
+                    const mpData = product.marketplaces.[marketplace]  {};
+                    
+                    row.innerHTML += `
+                        td${product.article}td
+                        td${mpData.name  'НД'}td
+                        td${product.recommended_price}td
+                        td class=${mpData.is_low  'low-price'  ''}${mpData.actual_price  'НД'}td
+                    `;
+                });
+
+                tbody.appendChild(row);
+            });
+        }
+
+         Загружаем данные при старте
+        document.addEventListener('DOMContentLoaded', loadData);
+    script
+body
+html
