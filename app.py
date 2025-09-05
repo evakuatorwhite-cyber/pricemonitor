@@ -4,6 +4,9 @@ import os
 import json
 from werkzeug.utils import secure_filename
 import openpyxl
+import requests
+import time
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -18,6 +21,72 @@ api_tokens = {
     'ozon': {'seller_id': '', 'api_key': ''},
     'wildberries': {'seller_id': '', 'api_key': ''}
 }
+
+class MarketplaceAPI:
+    @staticmethod
+    def get_yandex_product_info(article, seller_id, api_key):
+        """Получение информации о товаре с Яндекс Маркет"""
+        if not api_key or not seller_id:
+            return None, None, None
+            
+        try:
+            # Имитация API запроса к Яндекс Маркет
+            # В реальности здесь будет реальный API вызов
+            time.sleep(0.1)  # Имитация задержки
+            
+            # Заглушка для демонстрации
+            import random
+            price = random.uniform(100, 5000)
+            name = f"Товар {article} (Яндекс)"
+            url = f"https://market.yandex.ru/product/{article}"
+            
+            return round(price, 2), name, url
+            
+        except Exception as e:
+            print(f"Yandex API error: {e}")
+            return None, None, None
+
+    @staticmethod
+    def get_ozon_product_info(article, seller_id, api_key):
+        """Получение информации о товаре с Ozon"""
+        if not api_key or not seller_id:
+            return None, None, None
+            
+        try:
+            # Имитация API запроса к Ozon
+            time.sleep(0.1)
+            
+            import random
+            price = random.uniform(100, 5000)
+            name = f"Товар {article} (Ozon)"
+            url = f"https://www.ozon.ru/product/{article}"
+            
+            return round(price, 2), name, url
+            
+        except Exception as e:
+            print(f"Ozon API error: {e}")
+            return None, None, None
+
+    @staticmethod
+    def get_wildberries_product_info(article, seller_id, api_key):
+        """Получение информации о товаре с Wildberries"""
+        if not api_key or not seller_id:
+            return None, None, None
+            
+        try:
+            # Имитация API запроса к Wildberries
+            time.sleep(0.1)
+            
+            import random
+            price = random.uniform(100, 5000)
+            name = f"Товар {article} (Wildberries)"
+            url = f"https://www.wildberries.ru/catalog/{article}/detail.aspx"
+            
+            return round(price, 2), name, url
+            
+        except Exception as e:
+            print(f"Wildberries API error: {e}")
+            return None, None, None
 
 @app.route('/')
 def index():
@@ -51,23 +120,17 @@ def upload_file():
                     
                     if price_value is not None:
                         try:
-                            # Преобразуем в строку и очищаем
                             price_str = str(price_value).strip()
-                            if price_str:  # Если строка не пустая
+                            if price_str:
                                 recommended_price = float(price_str)
                         except (ValueError, TypeError):
-                            # Пропускаем строку с неверной ценой
-                            print(f"Предупреждение: Неверная цена в строке {row_idx}: {price_value}")
                             continue
                     
-                    # Добавляем только если артикул не пустой
                     if article:
                         products_data.append({
                             'article': article,
                             'recommended_price': recommended_price
                         })
-                    else:
-                        print(f"Предупреждение: Пустой артикул в строке {row_idx}")
             
             return jsonify({
                 'success': True,
@@ -104,7 +167,7 @@ def save_settings():
 
 @app.route('/api/update_prices', methods=['POST'])
 def update_prices():
-    global products_data
+    global products_data, api_tokens
     
     if not products_data:
         return jsonify({'error': 'Сначала загрузите данные товаров'}), 400
@@ -112,32 +175,60 @@ def update_prices():
     results = []
     
     for product in products_data:
-        import random
-        results.append({
+        product_result = {
             'article': product['article'],
             'recommended_price': product['recommended_price'],
-            'marketplaces': {
-                'yandex': {
-                    'name': f'Товар {product["article"]} - Яндекс',
-                    'actual_price': round(product['recommended_price'] * random.uniform(0.7, 1.3), 2),
-                    'is_low': False
-                },
-                'ozon': {
-                    'name': f'Товар {product["article"]} - Ozon',
-                    'actual_price': round(product['recommended_price'] * random.uniform(0.7, 1.3), 2),
-                    'is_low': False
-                },
-                'wildberries': {
-                    'name': f'Товар {product["article"]} - Wildberries',
-                    'actual_price': round(product['recommended_price'] * random.uniform(0.7, 1.3), 2),
-                    'is_low': False
-                }
-            }
-        })
-    
-    for product in results:
-        for marketplace in product['marketplaces'].values():
-            marketplace['is_low'] = marketplace['actual_price'] < product['recommended_price']
+            'marketplaces': {}
+        }
+        
+        # Получаем данные с Яндекс Маркет
+        yandex_price, yandex_name, yandex_url = MarketplaceAPI.get_yandex_product_info(
+            product['article'],
+            api_tokens['yandex']['seller_id'],
+            api_tokens['yandex']['api_key']
+        )
+        
+        product_result['marketplaces']['yandex'] = {
+            'name': yandex_name or f'Товар {product["article"]} - Яндекс',
+            'actual_price': yandex_price or round(product['recommended_price'] * 0.9, 2),
+            'is_low': False,
+            'url': yandex_url or f"https://market.yandex.ru/search?text={product['article']}"
+        }
+        
+        # Получаем данные с Ozon
+        ozon_price, ozon_name, ozon_url = MarketplaceAPI.get_ozon_product_info(
+            product['article'],
+            api_tokens['ozon']['seller_id'],
+            api_tokens['ozon']['api_key']
+        )
+        
+        product_result['marketplaces']['ozon'] = {
+            'name': ozon_name or f'Товар {product["article"]} - Ozon',
+            'actual_price': ozon_price or round(product['recommended_price'] * 0.95, 2),
+            'is_low': False,
+            'url': ozon_url or f"https://www.ozon.ru/search/?text={product['article']}"
+        }
+        
+        # Получаем данные с Wildberries
+        wb_price, wb_name, wb_url = MarketplaceAPI.get_wildberries_product_info(
+            product['article'],
+            api_tokens['wildberries']['seller_id'],
+            api_tokens['wildberries']['api_key']
+        )
+        
+        product_result['marketplaces']['wildberries'] = {
+            'name': wb_name or f'Товар {product["article"]} - Wildberries',
+            'actual_price': wb_price or round(product['recommended_price'] * 1.05, 2),
+            'is_low': False,
+            'url': wb_url or f"https://www.wildberries.ru/catalog/0/search.aspx?search={product['article']}"
+        }
+        
+        # Проверяем цены
+        for marketplace in product_result['marketplaces'].values():
+            if marketplace['actual_price'] and product['recommended_price']:
+                marketplace['is_low'] = marketplace['actual_price'] < product['recommended_price']
+        
+        results.append(product_result)
     
     return jsonify({'success': True, 'data': results})
 
