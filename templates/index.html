@@ -81,9 +81,16 @@
             border-radius: 5px; 
             cursor: pointer; 
             font-size: 14px;
+            margin-right: 10px;
         }
         .btn:hover { 
             background: #0056b3; 
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
         }
         .status { 
             margin: 15px 0; 
@@ -158,6 +165,11 @@
             background: #f8d7da;
             color: #721c24;
         }
+        .controls {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -172,7 +184,10 @@
 
         <!-- Главная вкладка -->
         <div id="main" class="tab-content active">
-            <button class="btn" onclick="updatePrices()">🔄 Обновить цены через API</button>
+            <div class="controls">
+                <button class="btn" onclick="updatePrices()">🔄 Обновить через API</button>
+                <button class="btn btn-secondary" onclick="showUploadedData()">📋 Показать загруженные данные</button>
+            </div>
             <div id="api-status" class="status"></div>
             <div id="status" class="status"></div>
             
@@ -201,7 +216,7 @@
                     </thead>
                     <tbody id="table-body">
                         <tr><td colspan="12" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">
-                            Загрузите данные Excel и настройте API для получения актуальных цен
+                            Загрузите данные Excel через вкладку "Загрузка данных"
                         </td></tr>
                     </tbody>
                 </table>
@@ -270,7 +285,6 @@
         }
 
         function updateApiStatusIndicators() {
-            // Обновляем статусы подключения API
             const yandexStatus = document.getElementById('yandex-status');
             const ozonStatus = document.getElementById('ozon-status');
             const wbStatus = document.getElementById('wb-status');
@@ -317,11 +331,27 @@
                     status.innerHTML = '<div class="success">✅ Файл успешно загружен!</div>';
                     fileInfo.innerHTML = `📊 Загружено товаров: <strong>${result.data.length}</strong>`;
                     currentData = result.data;
+                    
+                    // Автоматически показываем загруженные данные
+                    renderTable();
+                    
+                    // Переключаемся на главную вкладку
+                    setTimeout(() => openTab('main'), 500);
+                    
                 } else {
                     status.innerHTML = `<div class="error">❌ Ошибка: ${result.error}</div>`;
                 }
             } catch (error) {
                 status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
+            }
+        }
+
+        function showUploadedData() {
+            if (currentData && currentData.length > 0) {
+                renderTable();
+                document.getElementById('status').innerHTML = '<div class="success">✅ Отображены загруженные данные</div>';
+            } else {
+                document.getElementById('status').innerHTML = '<div class="error">❌ Нет загруженных данных</div>';
             }
         }
 
@@ -370,7 +400,6 @@
             tbody.innerHTML = currentData.map(product => {
                 let html = '<tr>';
                 
-                // Для каждого маркетплейса
                 ['yandex', 'ozon', 'wildberries'].forEach(marketplace => {
                     const mpData = product.marketplaces[marketplace] || {};
                     const price = mpData.actual_price;
@@ -449,10 +478,8 @@
             }
         }
 
-        // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', function() {
             loadSettings();
-            console.log('Price Monitor with API loaded successfully');
         });
     </script>
 </body>
