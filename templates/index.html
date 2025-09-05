@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мониторинг цен на маркетплейсах</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 95%; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .tabs { 
+            display: flex; 
+            margin-bottom: 20px; 
+            border-bottom: 1px solid #ddd;
+        }
+        .tab { 
+            padding: 12px 24px; 
+            cursor: pointer; 
+            border: 1px solid #ddd; 
+            border-bottom: none;
+            margin-right: 5px; 
+            border-radius: 5px 5px 0 0; 
+            background: #f8f9fa;
+        }
+        .tab.active { 
+            background: #007bff; 
+            color: white; 
+            border-color: #007bff;
+        }
+        .tab-content { 
+            display: none; 
+            padding: 20px 0;
+        }
+        .tab-content.active { 
+            display: block; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+        th, td { 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            text-align: left; 
+        }
+        th { 
+            background: #f8f9fa; 
+            font-weight: bold;
+        }
+        .low-price { 
+            background: #ffebee; 
+            color: #c62828; 
+            font-weight: bold; 
+        }
+        .btn { 
+            padding: 12px 24px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 14px;
+        }
+        .btn:hover { 
+            background: #0056b3; 
+        }
+        .status { 
+            margin: 15px 0; 
+            padding: 12px; 
+            border-radius: 5px; 
+            border: 1px solid transparent;
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            border-color: #c3e6cb;
+        }
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border-color: #f5c6cb;
+        }
+        .loading { 
+            background: #d1ecf1; 
+            color: #0c5460; 
+            border-color: #bee5eb;
+        }
+        .api-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .api-section h4 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        .api-section input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .marketplace-header {
+            background: #e3f2fd !important;
+            text-align: center !important;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Мониторинг цен на маркетплейсах</h1>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="openTab('main')">Главная</div>
+            <div class="tab" onclick="openTab('settings')">Настройки API</div>
+            <div class="tab" onclick="openTab('upload')">Загрузка данных</div>
+        </div>
+
+        <!-- Главная вкладка -->
+        <div id="main" class="tab-content active">
+            <button class="btn" onclick="updatePrices()">🔄 Обновить цены</button>
+            <div id="status" class="status"></div>
+            
+            <div class="table-container">
+                <table id="prices-table">
+                    <thead>
+                        <tr>
+                            <th colspan="4" class="marketplace-header">Яндекс Маркет</th>
+                            <th colspan="4" class="marketplace-header">Ozon</th>
+                            <th colspan="4" class="marketplace-header">Wildberries</th>
+                        </tr>
+                        <tr>
+                            <th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Актуальная цена</th>
+                            <th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Актуальная цена</th>
+                            <th>Артикул</th><th>Название</th><th>Рек. цена</th><th>Актуальная цена</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr><td colspan="12" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">
+                            Загрузите данные Excel через вкладку "Загрузка данных"
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Настройки API -->
+        <div id="settings" class="tab-content">
+            <div class="api-section">
+                <h4>🟠 Яндекс Маркет</h4>
+                <input type="text" id="yandex-seller-id" placeholder="Seller ID Яндекс Маркет">
+                <input type="password" id="yandex-api-key" placeholder="API Key Яндекс Маркет">
+            </div>
+
+            <div class="api-section">
+                <h4>🔵 Ozon</h4>
+                <input type="text" id="ozon-seller-id" placeholder="Seller ID Ozon">
+                <input type="password" id="ozon-api-key" placeholder="API Key Ozon">
+            </div>
+
+            <div class="api-section">
+                <h4>🟣 Wildberries</h4>
+                <input type="text" id="wildberries-seller-id" placeholder="Seller ID Wildberries">
+                <input type="password" id="wildberries-api-key" placeholder="API Key Wildberries">
+            </div>
+
+            <button class="btn" onclick="saveSettings()">💾 Сохранить настройки</button>
+            <div id="settings-status" class="status"></div>
+        </div>
+
+        <!-- Загрузка данных -->
+        <div id="upload" class="tab-content">
+            <h3>📤 Загрузка Excel файла</h3>
+            <p><strong>Формат файла:</strong></p>
+            <ul>
+                <li>Первый столбец: Артикул товара</li>
+                <li>Второй столбец: Рекомендованная цена</li>
+                <li>Первая строка: Заголовки (игнорируется)</li>
+            </ul>
+            
+            <input type="file" id="excel-file" accept=".xlsx,.xls" style="margin: 15px 0; padding: 10px; border: 2px dashed #ccc; border-radius: 5px; width: 100%;">
+            <br>
+            <button class="btn" onclick="uploadFile()">📁 Загрузить файл</button>
+            
+            <div id="upload-status" class="status"></div>
+            <div id="file-info" class="file-info"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = [];
+
+        function openTab(tabName) {
+            // Обновляем табы
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            // Активируем выбранный таб
+            document.querySelector(`.tab[onclick="openTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+
+            // Загружаем настройки если открыли вкладку настроек
+            if (tabName === 'settings') {
+                loadSettings();
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('excel-file');
+            const status = document.getElementById('upload-status');
+            const fileInfo = document.getElementById('file-info');
+
+            if (!fileInput.files[0]) {
+                status.innerHTML = '<div class="error">❌ Выберите файл для загрузки</div>';
+                return;
+            }
+
+            status.innerHTML = '<div class="loading">⏳ Загрузка файла...</div>';
+            fileInfo.innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = '<div class="success">✅ Файл успешно загружен!</div>';
+                    fileInfo.innerHTML = `📊 Загружено товаров: <strong>${result.data.length}</strong>`;
+                    currentData = result.data;
+                    
+                    // Автоматически обновляем цены после загрузки
+                    setTimeout(updatePrices, 1000);
+                } else {
+                    status.innerHTML = `<div class="error">❌ Ошибка: ${result.error}</div>`;
+                }
+            } catch (error) {
+                status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
+                console.error('Upload error:', error);
+            }
+        }
+
+        async function updatePrices() {
+            const status = document.getElementById('status');
+            
+            if (!currentData || currentData.length === 0) {
+                status.innerHTML = '<div class="error">❌ Сначала загрузите данные товаров</div>';
+                return;
+            }
+
+            status.innerHTML = '<div class="loading">⏳ Обновление цен...</div>';
+
+            try {
+                const response = await fetch('/api/update_prices', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = '<div class="success">✅ Цены успешно обновлены!</div>';
+                    currentData = result.data;
+                    renderTable();
+                } else {
+                    status.innerHTML = `<div class="error">❌ Ошибка: ${result.error}</div>`;
+                }
+            } catch (error) {
+                status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
+                console.error('Update prices error:', error);
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            
+            if (!currentData || currentData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px; color: #6c757d; font-style: italic;">Нет данных для отображения</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = currentData.map(product => {
+                let html = '<tr>';
+                
+                // Для каждого маркетплейса
+                ['yandex', 'ozon', 'wildberries'].forEach(marketplace => {
+                    const mpData = product.marketplaces[marketplace] || {};
+                    
+                    html += `
+                        <td>${product.article}</td>
+                        <td>${mpData.name || 'Н/Д'}</td>
+                        <td>${product.recommended_price.toFixed(2)}</td>
+                        <td class="${mpData.is_low ? 'low-price' : ''}">${mpData.actual_price ? mpData.actual_price.toFixed(2) : 'Н/Д'}</td>
+                    `;
+                });
+                
+                return html + '</tr>';
+            }).join('');
+        }
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/get_data');
+                const data = await response.json();
+                
+                // Заполняем поля настроек
+                document.getElementById('yandex-seller-id').value = data.settings.yandex.seller_id || '';
+                document.getElementById('yandex-api-key').value = data.settings.yandex.api_key || '';
+                
+                document.getElementById('ozon-seller-id').value = data.settings.ozon.seller_id || '';
+                document.getElementById('ozon-api-key').value = data.settings.ozon.api_key || '';
+                
+                document.getElementById('wildberries-seller-id').value = data.settings.wildberries.seller_id || '';
+                document.getElementById('wildberries-api-key').value = data.settings.wildberries.api_key || '';
+                
+            } catch (error) {
+                console.error('Ошибка загрузки настроек:', error);
+            }
+        }
+
+        async function saveSettings() {
+            const status = document.getElementById('settings-status');
+            status.innerHTML = '<div class="loading">⏳ Сохранение настроек...</div>';
+
+            const settings = {
+                yandex_seller_id: document.getElementById('yandex-seller-id').value,
+                yandex_api_key: document.getElementById('yandex-api-key').value,
+                ozon_seller_id: document.getElementById('ozon-seller-id').value,
+                ozon_api_key: document.getElementById('ozon-api-key').value,
+                wildberries_seller_id: document.getElementById('wildberries-seller-id').value,
+                wildberries_api_key: document.getElementById('wildberries-api-key').value
+            };
+
+            try {
+                const response = await fetch('/api/save_settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = '<div class="success">✅ Настройки успешно сохранены!</div>';
+                } else {
+                    status.innerHTML = '<div class="error">❌ Ошибка сохранения настроек</div>';
+                }
+            } catch (error) {
+                status.innerHTML = '<div class="error">❌ Ошибка соединения с сервером</div>';
+                console.error('Save settings error:', error);
+            }
+        }
+
+        // Загружаем данные при старте
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Price Monitor loaded successfully');
+        });
+    </script>
+</body>
+</html>
